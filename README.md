@@ -24,7 +24,7 @@ Not yet: API endpoints, custom User model, migrations.
    docker compose up -d --build
    ```
 
-3. Open http://localhost:8000/admin/
+3. Open http://localhost:8000/api/docs/ (Swagger) or http://localhost:8000/admin/
 
 Useful commands:
 
