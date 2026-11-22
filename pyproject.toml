@@ -1,0 +1,22 @@
+[project]
+name = "realrate"
+version = "0.1.0"
+description = "RealRate backend API"
+authors = [
+    {name = "Serhii",email = "ambartsumov.work@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+    "django (>=6.1.3,<7.0.0)",
+    "djangorestframework (>=3.18.3,<4.0.0)",
+    "psycopg[binary] (>=3.3.9,<4.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
