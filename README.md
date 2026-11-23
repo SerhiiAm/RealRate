@@ -4,8 +4,9 @@ Platform for honest ratings and reviews — backend API (Django + DRF).
 
 ## Status
 
-Early setup. Ready: Django + DRF skeleton, PostgreSQL, Docker for local development.
-Not yet: API endpoints, custom User model, migrations.
+Early setup. Ready: Django + DRF skeleton, PostgreSQL, Docker for local development,
+custom User model (login by email).
+Not yet: API endpoints.
 
 ## Tech stack
 
@@ -24,7 +25,15 @@ Not yet: API endpoints, custom User model, migrations.
    docker compose up -d --build
    ```
 
-3. Open http://localhost:8000/api/docs/ (Swagger) or http://localhost:8000/admin/
+   Database migrations are applied automatically on start.
+
+3. Create an admin account (asks for email and password):
+
+   ```
+   docker compose exec web python manage.py createsuperuser
+   ```
+
+4. Open http://localhost:8000/api/docs/ (Swagger) or http://localhost:8000/admin/
 
 Useful commands:
 
@@ -37,8 +46,6 @@ docker compose down -v       # stop and DELETE database and uploaded files
 Code changes are picked up automatically, no restart needed.
 After changing dependencies, rebuild: `docker compose up -d --build`.
 
-> Do not run `migrate` yet — the custom User model must be added first.
-
 ## Run without Docker (IDE)
 
 The database still runs in Docker:
@@ -50,6 +57,9 @@ poetry install
 
 Django does not read `.env` by itself — load it in your IDE
 (PyCharm: Run Configuration → Paths to ".env" files).
+
+Migrations are not applied automatically here. After pulling new code, run
+`manage.py migrate` from your IDE (same Run Configuration with `.env`).
 
 ## Code quality
 
