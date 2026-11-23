@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
+    "users",
 ]
 
 MIDDLEWARE = [
@@ -108,6 +109,9 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
+# Custom user model: login by email instead of username
+AUTH_USER_MODEL = "users.User"
 
 
 # Internationalization
