@@ -62,7 +62,13 @@ def test_register_creates_user_and_returns_tokens(api_client):
         "role": "user",
     }
     assert set(body) == {"user", "access", "refresh"}
-    assert str(AccessToken(body["access"])["user_id"]) == str(user.id)
+    access = AccessToken(body["access"])
+    refresh = RefreshToken(body["refresh"])
+    assert str(access["user_id"]) == str(user.id)
+    # Both tokens count from the refresh token's creation time; access "iat"
+    # is set a moment later and can fall into the next second
+    assert access["exp"] - refresh["iat"] == 15 * 60
+    assert refresh["exp"] - refresh["iat"] == 3 * 24 * 60 * 60
     assert OutstandingToken.objects.filter(user=user).count() == 1  # for blacklist
 
 
