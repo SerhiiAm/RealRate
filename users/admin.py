@@ -30,6 +30,16 @@ class UserAdmin(BaseUserAdmin):
         ),
     )
 
+    def get_readonly_fields(self, request, obj=None):
+        """An admin can't change their own role or active status.
+
+        Otherwise one click locks them out of the admin panel.
+        """
+        readonly = super().get_readonly_fields(request, obj)
+        if obj is not None and obj.pk == request.user.pk:
+            return (*readonly, "role", "is_active")
+        return readonly
+
     list_display = ("email", "first_name", "last_name", "role")
     list_filter = ("role", "is_active")
     search_fields = ("email", "first_name", "last_name")
