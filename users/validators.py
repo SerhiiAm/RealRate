@@ -1,4 +1,5 @@
 import string
+import unicodedata
 
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
@@ -16,6 +17,33 @@ def validate_email_domain(value):
     _local, at, domain = value.rpartition("@")
     if at and ("." not in domain or domain.startswith("[")):
         raise ValidationError(EMAIL_INVALID_MESSAGE, code="invalid")
+
+
+UKRAINIAN_LETTERS = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ"
+NAME_LETTERS = frozenset(
+    UKRAINIAN_LETTERS + UKRAINIAN_LETTERS.lower() + string.ascii_letters
+)
+# Hyphen and three apostrophes: ' (keyboard), ’ (typographic), ʼ (Ukrainian)
+NAME_SYMBOLS = frozenset("-'’ʼ")
+NAME_MIN_LENGTH = 2
+NAME_MAX_LENGTH = 20
+
+
+def normalize_and_validate_name(value, message):
+    """Return the name in NFC form or raise ValidationError(message).
+
+    NFC: some keyboards (e.g. macOS) send "ї" as "і" + combining mark;
+    after NFC it is one letter again.
+    """
+    name = unicodedata.normalize("NFC", value)
+    is_valid = (
+        NAME_MIN_LENGTH <= len(name) <= NAME_MAX_LENGTH
+        and name[0] in NAME_LETTERS
+        and set(name) <= NAME_LETTERS | NAME_SYMBOLS
+    )
+    if not is_valid:
+        raise ValidationError(message, code="invalid")
+    return name
 
 
 ALLOWED_PASSWORD_CHARS = frozenset(
