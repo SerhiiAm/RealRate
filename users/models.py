@@ -4,6 +4,11 @@ from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 
 
+class Role(models.TextChoices):
+    USER = "user", _("User")
+    ADMIN = "admin", _("Admin")
+
+
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
@@ -25,18 +30,14 @@ class UserManager(BaseUserManager):
         return user
 
     def create_user(self, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_staff", False)
-        extra_fields.setdefault("is_superuser", False)
+        # is_staff / is_superuser are set by User.save() from role.
         return self._create_user(email, password, **extra_fields)
 
     def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("role", Role.ADMIN)
 
-        if extra_fields.get("is_staff") is not True:
-            raise ValueError(_("Superuser must have is_staff=True."))
-        if extra_fields.get("is_superuser") is not True:
-            raise ValueError(_("Superuser must have is_superuser=True."))
+        if extra_fields.get("role") != Role.ADMIN:
+            raise ValueError(_("Superuser must have role=admin."))
 
         return self._create_user(email, password, **extra_fields)
 
@@ -48,6 +49,12 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     username = None
     email = models.EmailField(_("email address"), unique=True)
+    role = models.CharField(
+        _("role"),
+        max_length=20,
+        choices=Role.choices,
+        default=Role.USER,
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -62,3 +69,20 @@ class User(AbstractUser):
                 violation_error_message=_("A user with this email already exists."),
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        """Keep is_staff and is_superuser in sync with role.
+
+        role is the single source of truth: admin -> both True, user -> both False.
+        QuerySet.update() and bulk_create() bypass this method - don't use them
+        to change role.
+        """
+        is_admin = self.role == Role.ADMIN
+        self.is_staff = is_admin
+        self.is_superuser = is_admin
+
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "role" in update_fields:
+            kwargs["update_fields"] = set(update_fields) | {"is_staff", "is_superuser"}
+
+        super().save(*args, **kwargs)
