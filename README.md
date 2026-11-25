@@ -5,8 +5,9 @@ Platform for honest ratings and reviews — backend API (Django + DRF).
 ## Status
 
 Early setup. Ready: Django + DRF skeleton, PostgreSQL, Docker for local development,
-custom User model (login by email, case-insensitive), user roles (user / admin).
-Not yet: API endpoints.
+custom User model (login by email, case-insensitive), user roles (user / admin),
+registration API.
+Not yet: login, refresh, logout, profile (`/me`).
 
 ## Tech stack
 
@@ -70,8 +71,12 @@ Migrations are not applied automatically here. After pulling new code, run
 - Email is case-insensitive: `Ivan@Mail.com` and `ivan@mail.com` are the same
   account. Emails are stored in lowercase.
 - One account per email (duplicates are rejected, also by the database).
-- Passwords are stored hashed. Password rules (Django validators): at least
-  8 characters, not too common, not only digits, not too similar to the email.
+- Email must have a real domain: `x@localhost` and `x@[127.0.0.1]` are rejected.
+- Password: 8–64 characters, at least 1 uppercase letter, 1 digit and
+  1 special character; only Latin letters, digits and special characters,
+  no spaces. It also must not be too common or too similar to the email/name.
+  Passwords are stored hashed (Argon2). These rules apply everywhere,
+  including the admin panel and `createsuperuser`.
 - Every user has a role: `user` (default) or `admin`.
 - Access to the admin panel (`/admin/`) depends only on the role: `admin` has
   full access, `user` has none.
@@ -79,7 +84,21 @@ Migrations are not applied automatically here. After pulling new code, run
 - An admin can change other users' role and active status in the admin panel,
   but not their own (so nobody locks themselves out).
 
-Registration and login via API: not implemented yet.
+### Registration
+
+- Fields: `email`, `first_name`, `password`, `password_confirm` are required;
+  `last_name` is optional (stored as empty).
+- First and last name: 2–20 characters, start with a letter; only Ukrainian
+  or Latin letters, hyphen and apostrophes (`'` `’` `ʼ`); no spaces or digits.
+  Letters `Ё Ъ Ы Э` are not accepted.
+- Registration also logs the user in: the response has the user and a token
+  pair (access lives 15 minutes, refresh 3 days).
+- A new user always gets role `user`; `role`, `is_staff` and other extra
+  fields in the request are ignored.
+- Errors are returned per field, all at once: `{"email": ["..."]}`.
+- Registration counts as the first login (`last_login` is set).
+
+Login via API: not implemented yet.
 API endpoints are documented in Swagger: http://localhost:8000/api/docs/
 
 ## Tests
