@@ -92,9 +92,7 @@ def test_reuse_of_rotated_token_ends_all_sessions(api_client, user):
 def test_reuse_after_logout_is_not_a_theft(api_client, user):
     logged_out = new_refresh(user)
     phone = new_refresh(user)
-    # Logout endpoint comes in the next step; revoke the same way it will
-    outstanding = OutstandingToken.objects.get(jti=RefreshToken(logged_out)["jti"])
-    tokens._revoke(outstanding, Reason.LOGOUT)
+    api_client.post(reverse("users:logout"), {"refresh": logged_out}, format="json")
 
     response = post_refresh(api_client, logged_out)  # an old tab after logout
 
