@@ -101,3 +101,17 @@ def rotate_refresh_token(raw_token):
         _revoke_all_for_user(outstanding.user_id)
     # LOGOUT / REUSE_DETECTED: an old tab or a retry, not a theft
     raise AuthenticationFailed(INVALID_REFRESH_MESSAGE)
+
+
+def revoke_refresh_token(raw_token):
+    """Logout: revoke this refresh token only; other sessions stay.
+
+    Idempotent: an already revoked token (double click, retry, a token that
+    was already exchanged) is left as is and is NOT treated as a theft.
+    """
+    outstanding = _get_outstanding(_decode(raw_token))
+
+    with transaction.atomic():
+        _lock_user(outstanding.user_id)
+        if _get_revocation(outstanding) is None:
+            _revoke(outstanding, Reason.LOGOUT)

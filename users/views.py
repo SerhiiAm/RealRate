@@ -15,7 +15,7 @@ from .serializers import (
     TokenPairSerializer,
     UserSerializer,
 )
-from .tokens import rotate_refresh_token
+from .tokens import revoke_refresh_token, rotate_refresh_token
 
 
 def auth_response_data(user):
@@ -101,3 +101,23 @@ class RefreshView(PublicAuthViewMixin, generics.GenericAPIView):
         pair = rotate_refresh_token(serializer.validated_data["refresh"])
 
         return Response(pair, status=status.HTTP_200_OK)
+
+
+class LogoutView(PublicAuthViewMixin, generics.GenericAPIView):
+    """Log out of this session: the refresh token stops working.
+
+    No access token needed (it may already be expired). The access token
+    can't be revoked and stays valid until it expires (max 15 minutes),
+    so the frontend must delete both tokens. Calling it again returns 204 too.
+    """
+
+    serializer_class = RefreshSerializer
+
+    @extend_schema(responses={204: None})
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        revoke_refresh_token(serializer.validated_data["refresh"])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
