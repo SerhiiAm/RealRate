@@ -6,8 +6,8 @@ Platform for honest ratings and reviews — backend API (Django + DRF).
 
 Early setup. Ready: Django + DRF skeleton, PostgreSQL, Docker for local development,
 custom User model (login by email, case-insensitive), user roles (user / admin),
-registration API.
-Not yet: login, refresh, logout, profile (`/me`).
+auth API: registration, login, refresh, logout.
+Not yet: profile (`/me`).
 
 ## Tech stack
 
@@ -98,7 +98,29 @@ Migrations are not applied automatically here. After pulling new code, run
 - Errors are returned per field, all at once: `{"email": ["..."]}`.
 - Registration counts as the first login (`last_login` is set).
 
-Login via API: not implemented yet.
+### Login, refresh and logout
+
+- Login: email (any case) + password. The response is the same as for
+  registration: the user and a token pair. `last_login` is updated.
+- A wrong password, an unknown email and a deactivated account all get the
+  same error: `401 {"detail": "Invalid email or password"}`.
+- At most 10 login attempts per minute from one IP; then `429`, even with
+  the right password.
+- Refresh: send the refresh token, get a new pair. A refresh token works
+  only once: after it is exchanged, it stops working.
+- Sending an already exchanged refresh token again is treated as theft:
+  all sessions of that user are ended, the user has to log in again.
+  Two refreshes with the same token at the same moment (e.g. two browser
+  tabs) count as this too, so only one refresh may run at a time.
+- Logout: send the refresh token, it stops working; other devices stay
+  logged in. Logging out again with the same token is not an error (`204`).
+- The access token can't be revoked: after logout it still works until it
+  expires (max 15 minutes), so the frontend must delete both tokens.
+- If the refresh token can't be used (expired, already used, logged out,
+  account deactivated), the answer is always
+  `401 {"detail": "Invalid or expired refresh token"}`: the user has to log
+  in again.
+
 API endpoints are documented in Swagger: http://localhost:8000/api/docs/
 
 ## Tests
