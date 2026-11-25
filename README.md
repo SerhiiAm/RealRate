@@ -5,7 +5,7 @@ Platform for honest ratings and reviews — backend API (Django + DRF).
 ## Status
 
 Early setup. Ready: Django + DRF skeleton, PostgreSQL, Docker for local development,
-custom User model (login by email, case-insensitive).
+custom User model (login by email, case-insensitive), user roles (user / admin).
 Not yet: API endpoints.
 
 ## Tech stack
@@ -72,8 +72,12 @@ Migrations are not applied automatically here. After pulling new code, run
 - One account per email (duplicates are rejected, also by the database).
 - Passwords are stored hashed. Password rules (Django validators): at least
   8 characters, not too common, not only digits, not too similar to the email.
-- Admin panel (`/admin/`) is available only for active staff users
-  (create the first one with `createsuperuser`).
+- Every user has a role: `user` (default) or `admin`.
+- Access to the admin panel (`/admin/`) depends only on the role: `admin` has
+  full access, `user` has none.
+- `createsuperuser` always creates a user with role `admin`.
+- An admin can change other users' role and active status in the admin panel,
+  but not their own (so nobody locks themselves out).
 
 Registration and login via API: not implemented yet.
 API endpoints are documented in Swagger: http://localhost:8000/api/docs/

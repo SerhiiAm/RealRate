@@ -1,7 +1,13 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
+
+
+class Role(models.TextChoices):
+    USER = "user", _("User")
+    ADMIN = "admin", _("Admin")
 
 
 class UserManager(BaseUserManager):
@@ -25,18 +31,14 @@ class UserManager(BaseUserManager):
         return user
 
     def create_user(self, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_staff", False)
-        extra_fields.setdefault("is_superuser", False)
+        # is_staff / is_superuser are set by User.save() from role.
         return self._create_user(email, password, **extra_fields)
 
     def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("role", Role.ADMIN)
 
-        if extra_fields.get("is_staff") is not True:
-            raise ValueError(_("Superuser must have is_staff=True."))
-        if extra_fields.get("is_superuser") is not True:
-            raise ValueError(_("Superuser must have is_superuser=True."))
+        if extra_fields.get("role") != Role.ADMIN:
+            raise ValueError(_("Superuser must have role=admin."))
 
         return self._create_user(email, password, **extra_fields)
 
@@ -48,6 +50,12 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     username = None
     email = models.EmailField(_("email address"), unique=True)
+    role = models.CharField(
+        _("role"),
+        max_length=20,
+        choices=Role.choices,
+        default=Role.USER,
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -61,4 +69,35 @@ class User(AbstractUser):
                 name="user_email_case_insensitive_unique",
                 violation_error_message=_("A user with this email already exists."),
             ),
+            # Safety net for QuerySet.update() / bulk_create(), which skip save()
+            models.CheckConstraint(
+                condition=(
+                    Q(role=Role.ADMIN, is_staff=True, is_superuser=True)
+                    | (~Q(role=Role.ADMIN) & Q(is_staff=False, is_superuser=False))
+                ),
+                name="user_role_matches_admin_flags",
+                violation_error_message=_(
+                    "is_staff and is_superuser must match the role."
+                ),
+            ),
         ]
+
+    def _sync_flags_with_role(self):
+        """role is the single source of truth: admin -> both True, else both False."""
+        is_admin = self.role == Role.ADMIN
+        self.is_staff = is_admin
+        self.is_superuser = is_admin
+
+    def clean(self):
+        # full_clean() checks constraints, so flags must be synced before it
+        super().clean()
+        self._sync_flags_with_role()
+
+    def save(self, *args, **kwargs):
+        self._sync_flags_with_role()
+
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "role" in update_fields:
+            kwargs["update_fields"] = set(update_fields) | {"is_staff", "is_superuser"}
+
+        super().save(*args, **kwargs)
