@@ -1,0 +1,141 @@
+from django.contrib.auth import password_validation
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError, transaction
+from rest_framework import serializers
+
+from .models import User
+from .validators import (
+    EMAIL_INVALID_MESSAGE,
+    normalize_and_validate_name,
+    validate_email_domain,
+)
+
+FIRST_NAME_MESSAGE = (
+    "Name must be 2–20 characters, start with a letter and contain only "
+    "letters, hyphens, or apostrophes"
+)
+LAST_NAME_MESSAGE = (
+    "Last name must be 2–20 characters, start with a letter and contain only "
+    "letters, hyphens, or apostrophes"
+)
+EMAIL_TAKEN_MESSAGE = "This email is already registered"
+
+
+def required_messages(message):
+    """Same message for a missing field, an empty string and null."""
+    return {"required": message, "blank": message, "null": message}
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """User block in responses (register, login, /me)."""
+
+    class Meta:
+        model = User
+        fields = ("id", "email", "first_name", "last_name", "role")
+        read_only_fields = fields
+
+
+class AuthResponseSerializer(serializers.Serializer):
+    """Response of register (and later login): user block + JWT pair.
+
+    Used only to describe the response in Swagger.
+    """
+
+    user = UserSerializer()
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class RegisterSerializer(serializers.Serializer):
+    """Registration input. Only these five fields are accepted:
+    anything else (role, is_staff, is_superuser, ...) is ignored.
+    """
+
+    # Declared explicitly (not ModelSerializer): no case-sensitive
+    # UniqueValidator, our own case-insensitive check in validate_email.
+    email = serializers.EmailField(
+        max_length=254,
+        validators=[validate_email_domain],
+        error_messages={
+            **required_messages("Email is required"),
+            "invalid": EMAIL_INVALID_MESSAGE,
+            "max_length": EMAIL_INVALID_MESSAGE,
+        },
+    )
+    first_name = serializers.CharField(
+        error_messages=required_messages("Name is required"),
+    )
+    last_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        error_messages={"null": LAST_NAME_MESSAGE},
+    )
+    # trim_whitespace=False: a space must fail the rules, not be cut silently
+    password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+        error_messages=required_messages("Password is required"),
+    )
+    password_confirm = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+        error_messages=required_messages("Please confirm your password"),
+    )
+
+    def validate_email(self, value):
+        email = User.objects.normalize_email(value)
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError(EMAIL_TAKEN_MESSAGE)
+        return email
+
+    def validate_first_name(self, value):
+        return normalize_and_validate_name(value, FIRST_NAME_MESSAGE)
+
+    def validate_last_name(self, value):
+        if value == "":
+            return value
+        return normalize_and_validate_name(value, LAST_NAME_MESSAGE)
+
+    def validate_password(self, value):
+        # Rules and "too common" here, so the error is shown together with
+        # other fields' errors (validate() runs only when all fields are valid)
+        password_validation.validate_password(value)
+        return value
+
+    def validate(self, attrs):
+        errors = {}
+
+        # Same validators again, now with the user: adds "too similar to email"
+        candidate = User(
+            email=attrs["email"],
+            first_name=attrs["first_name"],
+            last_name=attrs["last_name"],
+        )
+        try:
+            password_validation.validate_password(attrs["password"], user=candidate)
+        except DjangoValidationError as exc:
+            errors["password"] = exc.messages
+
+        if attrs["password"] != attrs["password_confirm"]:
+            errors["password_confirm"] = ["Passwords do not match"]
+
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
+
+    def create(self, validated_data):
+        validated_data.pop("password_confirm")
+        try:
+            # Savepoint: a failed INSERT must not break the outer transaction
+            with transaction.atomic():
+                return User.objects.create_user(**validated_data)
+        except IntegrityError:
+            # Race: the same email was registered between validation and INSERT
+            if User.objects.filter(email__iexact=validated_data["email"]).exists():
+                raise serializers.ValidationError(
+                    {"email": [EMAIL_TAKEN_MESSAGE]}
+                ) from None
+            raise

@@ -4,6 +4,8 @@ from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 
+from .validators import validate_email_domain
+
 
 class Role(models.TextChoices):
     USER = "user", _("User")
@@ -49,7 +51,10 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
     username = None
-    email = models.EmailField(_("email address"), unique=True)
+    # On the model field, so admin forms and createsuperuser check it too
+    email = models.EmailField(
+        _("email address"), unique=True, validators=[validate_email_domain]
+    )
     role = models.CharField(
         _("role"),
         max_length=20,
