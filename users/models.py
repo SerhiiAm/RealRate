@@ -3,6 +3,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
 from .validators import validate_email_domain
 
@@ -106,3 +107,25 @@ class User(AbstractUser):
             kwargs["update_fields"] = set(update_fields) | {"is_staff", "is_superuser"}
 
         super().save(*args, **kwargs)
+
+
+class RefreshTokenRevocation(models.Model):
+    """Why a refresh token was revoked (simplejwt's blacklist stores no reason).
+
+    Needed to tell theft from a normal logout: sending a token again after it
+    was ROTATED means someone else has it; after LOGOUT it is just an old tab.
+    """
+
+    class Reason(models.TextChoices):
+        ROTATED = "rotated", _("Exchanged for a new pair")
+        LOGOUT = "logout", _("Logged out")
+        REUSE_DETECTED = "reuse_detected", _("Revoked after reuse was detected")
+
+    token = models.OneToOneField(
+        OutstandingToken, on_delete=models.CASCADE, related_name="revocation"
+    )
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+    revoked_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.token.jti}: {self.reason}"

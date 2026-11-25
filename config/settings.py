@@ -161,6 +161,13 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    # Brute-force protection for login, counted per client IP
+    "DEFAULT_THROTTLE_RATES": {"login": "10/min"},
+    # How many proxies (Nginx) stand in front of Django. 0 = trust only the
+    # connection address; DRF's default (None) trusts any X-Forwarded-For
+    # header, so a client could fake its IP and bypass the limit.
+    # Behind one Nginx that sets X-Forwarded-For: DJANGO_NUM_PROXIES=1.
+    "NUM_PROXIES": int(os.environ.get("DJANGO_NUM_PROXIES", "0")),
 }
 
 
@@ -172,8 +179,8 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=3),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    # Analytics needs last_login; login view updates it
-    "UPDATE_LAST_LOGIN": True,
+    # UPDATE_LAST_LOGIN is not used: it works only with simplejwt's own login
+    # view; our register/login views set last_login themselves.
 }
 
 
