@@ -1,6 +1,6 @@
 import pytest
 from django.contrib.auth import authenticate
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from users.models import Role, User
 
@@ -83,6 +83,42 @@ def test_changing_role_syncs_flags_in_db(
     assert user.role == new_role
     assert user.is_staff is expected_flag
     assert user.is_superuser is expected_flag
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"role": Role.ADMIN},  # role without flags
+        {"role": Role.ADMIN, "is_staff": True},  # admin without superuser
+        {"is_superuser": True},  # flag without role
+        {"is_staff": True},
+    ],
+)
+def test_database_rejects_role_and_flags_mismatch(changes):
+    # QuerySet.update() skips save(), so only the DB constraint can stop it
+    user = User.objects.create_user("user@mail.com", PASSWORD)
+
+    with (
+        pytest.raises(IntegrityError, match="user_role_matches_admin_flags"),
+        transaction.atomic(),
+    ):
+        User.objects.filter(pk=user.pk).update(**changes)
+
+    user.refresh_from_db()
+    assert user.role == Role.USER
+    assert user.is_staff is False
+    assert user.is_superuser is False
+
+
+def test_full_clean_accepts_role_change():
+    # Admin forms call full_clean() before save(): flags must be synced by then
+    user = User.objects.create_user("user@mail.com", PASSWORD)
+    user.role = Role.ADMIN
+
+    user.full_clean()
+
+    assert user.is_staff is True
+    assert user.is_superuser is True
 
 
 def test_database_rejects_same_email_in_other_case():
