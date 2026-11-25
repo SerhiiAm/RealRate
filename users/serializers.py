@@ -35,6 +35,17 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class AuthResponseSerializer(serializers.Serializer):
+    """Response of register (and later login): user block + JWT pair.
+
+    Used only to describe the response in Swagger.
+    """
+
+    user = UserSerializer()
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
 class RegisterSerializer(serializers.Serializer):
     """Registration input. Only these five fields are accepted:
     anything else (role, is_staff, is_superuser, ...) is ignored.
