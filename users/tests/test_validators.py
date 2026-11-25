@@ -1,9 +1,12 @@
 import pytest
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.management import CommandError, call_command
 
 from users.models import User
-from users.validators import PasswordRulesValidator
+from users.validators import PasswordRulesValidator, validate_email_domain
+
+EMAIL_MESSAGE = "Please enter a valid email address"
 
 RULES_MESSAGE = (
     "Password must be 8–64 characters, include at least 1 uppercase letter, "
@@ -71,3 +74,51 @@ def test_validate_password_uses_project_validators(password, email, message):
 
 def test_validate_password_accepts_strong_password():
     validate_password("Str0ng-pass!", user=User(email="user@mail.com"))
+
+
+@pytest.mark.parametrize("email", ["x@localhost", "x@[127.0.0.1]"])
+def test_email_domain_rejects_no_real_domain(email):
+    with pytest.raises(ValidationError) as exc_info:
+        validate_email_domain(email)
+
+    assert exc_info.value.messages == [EMAIL_MESSAGE]
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        "ivan@mail.com",
+        "io@i.ua",  # short real email
+        "ivan@пошта.укр",  # Cyrillic domain is a real domain
+        "abc",  # no @: left to Django's validator, so only one error is shown
+    ],
+)
+def test_email_domain_accepts_others(email):
+    validate_email_domain(email)
+
+
+@pytest.mark.parametrize(
+    ("email", "message"),
+    [
+        ("x@localhost", EMAIL_MESSAGE),  # our validator
+        ("abc", "Enter a valid email address."),  # Django's validator
+    ],
+)
+def test_user_email_field_shows_one_error(email, message):
+    # Model field validation is what admin forms use
+    with pytest.raises(ValidationError) as exc_info:
+        User(email=email).full_clean(
+            exclude=["password"], validate_unique=False, validate_constraints=False
+        )
+
+    assert exc_info.value.message_dict["email"] == [message]
+
+
+@pytest.mark.django_db
+def test_createsuperuser_rejects_localhost_email(monkeypatch):
+    monkeypatch.setenv("DJANGO_SUPERUSER_PASSWORD", "Str0ng-pass!")
+
+    with pytest.raises(CommandError, match=EMAIL_MESSAGE):
+        call_command("createsuperuser", "--noinput", email="x@localhost")
+
+    assert not User.objects.exists()
