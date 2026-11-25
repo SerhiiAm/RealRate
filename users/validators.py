@@ -3,6 +3,21 @@ import string
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
+EMAIL_INVALID_MESSAGE = _("Please enter a valid email address")
+
+
+def validate_email_domain(value):
+    """Reject emails without a real domain.
+
+    Django's EmailValidator accepts `x@localhost` and `x@[127.0.0.1]`.
+    Other bad formats (no @, bad domain) are left to Django's validator,
+    so only one error is shown.
+    """
+    _local, at, domain = value.rpartition("@")
+    if at and ("." not in domain or domain.startswith("[")):
+        raise ValidationError(EMAIL_INVALID_MESSAGE, code="invalid")
+
+
 ALLOWED_PASSWORD_CHARS = frozenset(
     string.ascii_letters + string.digits + string.punctuation
 )
