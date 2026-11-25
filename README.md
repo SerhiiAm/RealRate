@@ -73,17 +73,11 @@ Migrations are not applied automatically here. After pulling new code, run
 - Passwords are stored hashed. Password rules (Django validators): at least
   8 characters, not too common, not only digits, not too similar to the email.
 - Every user has a role: `user` (default) or `admin`.
-- Role is the only source of access: `admin` gets full access to the admin
-  panel (`/admin/`), `user` has no access to it. `is_staff` / `is_superuser`
-  are set automatically from the role and cannot be edited in the admin panel.
-- Passing `is_staff` / `is_superuser` without `role=admin` does not make an admin.
+- Access to the admin panel (`/admin/`) depends only on the role: `admin` has
+  full access, `user` has none.
 - `createsuperuser` always creates a user with role `admin`.
-- An admin can change any user's role in the admin panel.
-- The database rejects a role that doesn't match `is_staff` / `is_superuser`
-  (e.g. `QuerySet.update(role="admin")` without the flags fails), so change
-  the role with `save()` or in the admin panel.
-- Superusers created before roles existed got role `admin` by migration
-  `users/0002`.
+- An admin can change other users' role and active status in the admin panel,
+  but not their own (so nobody locks themselves out).
 
 Registration and login via API: not implemented yet.
 API endpoints are documented in Swagger: http://localhost:8000/api/docs/
