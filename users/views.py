@@ -10,9 +10,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import (
     AuthResponseSerializer,
     LoginSerializer,
+    RefreshSerializer,
     RegisterSerializer,
+    TokenPairSerializer,
     UserSerializer,
 )
+from .tokens import rotate_refresh_token
 
 
 def auth_response_data(user):
@@ -25,14 +28,24 @@ def auth_response_data(user):
     }
 
 
-class RegisterView(generics.CreateAPIView):
+class PublicAuthViewMixin:
+    """Settings for register / login / refresh / logout."""
+
+    permission_classes = (AllowAny,)
+    # No authentication: an old or broken access token that the frontend
+    # sends with every request must not block these endpoints
+    authentication_classes = ()
+
+    def get_authenticate_header(self, request):
+        # Without authentication classes DRF turns 401 into 403;
+        # returning the header keeps "invalid credentials/token" a 401
+        return 'Bearer realm="api"'
+
+
+class RegisterView(PublicAuthViewMixin, generics.CreateAPIView):
     """Register and log in at once: the response already has the tokens."""
 
     serializer_class = RegisterSerializer
-    permission_classes = (AllowAny,)
-    # No authentication: an old or broken token in the header must not
-    # turn registration into 401
-    authentication_classes = ()
 
     @extend_schema(responses={201: AuthResponseSerializer})
     def post(self, request, *args, **kwargs):
@@ -51,19 +64,12 @@ class RegisterView(generics.CreateAPIView):
         return Response(data, status=status.HTTP_201_CREATED)
 
 
-class LoginView(generics.GenericAPIView):
+class LoginView(PublicAuthViewMixin, generics.GenericAPIView):
     """Log in with email and password: user block + new token pair."""
 
     serializer_class = LoginSerializer
-    permission_classes = (AllowAny,)
-    authentication_classes = ()  # same reason as in RegisterView
     throttle_classes = (ScopedRateThrottle,)
     throttle_scope = "login"
-
-    def get_authenticate_header(self, request):
-        # Without authentication classes DRF turns 401 into 403;
-        # returning the header keeps "Invalid email or password" a 401
-        return 'Bearer realm="api"'
 
     @extend_schema(responses={200: AuthResponseSerializer})
     def post(self, request, *args, **kwargs):
@@ -76,3 +82,22 @@ class LoginView(generics.GenericAPIView):
             data = auth_response_data(user)
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+class RefreshView(PublicAuthViewMixin, generics.GenericAPIView):
+    """Exchange a refresh token for a new pair; the old one stops working.
+
+    Sending an already exchanged refresh token again ends all sessions
+    of the user (it means the token was stolen).
+    """
+
+    serializer_class = RefreshSerializer
+
+    @extend_schema(responses={200: TokenPairSerializer})
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        pair = rotate_refresh_token(serializer.validated_data["refresh"])
+
+        return Response(pair, status=status.HTTP_200_OK)

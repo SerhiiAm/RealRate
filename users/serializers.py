@@ -49,6 +49,21 @@ class AuthResponseSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
 
+class TokenPairSerializer(serializers.Serializer):
+    """Response of refresh. Used only to describe it in Swagger."""
+
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class RefreshSerializer(serializers.Serializer):
+    """Input of refresh and logout."""
+
+    refresh = serializers.CharField(
+        error_messages=required_messages("Refresh token is required")
+    )
+
+
 class LoginSerializer(serializers.Serializer):
     # CharField, not EmailField: a badly formatted email simply doesn't match
     # any account, so it gets the same "Invalid email or password"
