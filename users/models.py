@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 
@@ -68,18 +69,32 @@ class User(AbstractUser):
                 name="user_email_case_insensitive_unique",
                 violation_error_message=_("A user with this email already exists."),
             ),
+            # Safety net for QuerySet.update() / bulk_create(), which skip save()
+            models.CheckConstraint(
+                condition=(
+                    Q(role=Role.ADMIN, is_staff=True, is_superuser=True)
+                    | (~Q(role=Role.ADMIN) & Q(is_staff=False, is_superuser=False))
+                ),
+                name="user_role_matches_admin_flags",
+                violation_error_message=_(
+                    "is_staff and is_superuser must match the role."
+                ),
+            ),
         ]
 
-    def save(self, *args, **kwargs):
-        """Keep is_staff and is_superuser in sync with role.
-
-        role is the single source of truth: admin -> both True, user -> both False.
-        QuerySet.update() and bulk_create() bypass this method - don't use them
-        to change role.
-        """
+    def _sync_flags_with_role(self):
+        """role is the single source of truth: admin -> both True, else both False."""
         is_admin = self.role == Role.ADMIN
         self.is_staff = is_admin
         self.is_superuser = is_admin
+
+    def clean(self):
+        # full_clean() checks constraints, so flags must be synced before it
+        super().clean()
+        self._sync_flags_with_role()
+
+    def save(self, *args, **kwargs):
+        self._sync_flags_with_role()
 
         update_fields = kwargs.get("update_fields")
         if update_fields is not None and "role" in update_fields:
