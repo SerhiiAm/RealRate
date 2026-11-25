@@ -1,7 +1,7 @@
-from django.contrib.auth import password_validation
+from django.contrib.auth import authenticate, password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from rest_framework import serializers
+from rest_framework import exceptions, serializers
 
 from .models import User
 from .validators import (
@@ -19,6 +19,9 @@ LAST_NAME_MESSAGE = (
     "letters, hyphens, or apostrophes"
 )
 EMAIL_TAKEN_MESSAGE = "This email is already registered"
+# One message for a wrong password, an unknown email and an inactive account:
+# otherwise anyone could find out which emails are registered
+INVALID_CREDENTIALS_MESSAGE = "Invalid email or password"
 
 
 def required_messages(message):
@@ -44,6 +47,33 @@ class AuthResponseSerializer(serializers.Serializer):
     user = UserSerializer()
     access = serializers.CharField()
     refresh = serializers.CharField()
+
+
+class LoginSerializer(serializers.Serializer):
+    # CharField, not EmailField: a badly formatted email simply doesn't match
+    # any account, so it gets the same "Invalid email or password"
+    email = serializers.CharField(error_messages=required_messages("Email is required"))
+    # Not trimmed, same as in registration
+    password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+        error_messages=required_messages("Password is required"),
+    )
+
+    def validate(self, attrs):
+        # Django's backend: email lookup ignores case, inactive users are
+        # rejected, and a password hash is still computed for unknown emails
+        # (so the response time doesn't reveal whether the email exists)
+        user = authenticate(
+            request=self.context.get("request"),
+            email=attrs["email"],
+            password=attrs["password"],
+        )
+        if user is None:
+            raise exceptions.AuthenticationFailed(INVALID_CREDENTIALS_MESSAGE)
+        attrs["user"] = user
+        return attrs
 
 
 class RegisterSerializer(serializers.Serializer):
