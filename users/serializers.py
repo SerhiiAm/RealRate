@@ -1,6 +1,8 @@
 from django.contrib.auth import authenticate, password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import exceptions, serializers
+from rest_framework.exceptions import ErrorDetail
+from rest_framework.fields import get_error_detail
 
 from .models import User
 from .validators import (
@@ -18,6 +20,7 @@ LAST_NAME_MESSAGE = (
     "letters, hyphens, or apostrophes"
 )
 EMAIL_TAKEN_MESSAGE = "This email is already registered"
+EMAIL_TAKEN_CODE = "email_taken"
 # One message for a wrong password, an unknown email and an inactive account:
 # otherwise anyone could find out which emails are registered
 INVALID_CREDENTIALS_MESSAGE = "Invalid email or password"
@@ -85,7 +88,9 @@ class LoginSerializer(serializers.Serializer):
             password=attrs["password"],
         )
         if user is None:
-            raise exceptions.AuthenticationFailed(INVALID_CREDENTIALS_MESSAGE)
+            raise exceptions.AuthenticationFailed(
+                INVALID_CREDENTIALS_MESSAGE, code="invalid_credentials"
+            )
         attrs["user"] = user
         return attrs
 
@@ -113,7 +118,9 @@ class RegisterSerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
         default="",
-        error_messages={"null": LAST_NAME_MESSAGE},
+        # null is checked in validate_last_name: DRF's "null" code would
+        # become "required", which is wrong for an optional field
+        allow_null=True,
     )
     # trim_whitespace=False: a space must fail the rules, not be cut silently
     password = serializers.CharField(
@@ -132,13 +139,17 @@ class RegisterSerializer(serializers.Serializer):
     def validate_email(self, value):
         email = User.objects.normalize_email(value)
         if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError(EMAIL_TAKEN_MESSAGE)
+            raise serializers.ValidationError(
+                EMAIL_TAKEN_MESSAGE, code=EMAIL_TAKEN_CODE
+            )
         return email
 
     def validate_first_name(self, value):
         return normalize_and_validate_name(value, FIRST_NAME_MESSAGE)
 
     def validate_last_name(self, value):
+        if value is None:
+            raise serializers.ValidationError(LAST_NAME_MESSAGE, code="invalid")
         if value == "":
             return value
         return normalize_and_validate_name(value, LAST_NAME_MESSAGE)
@@ -161,10 +172,13 @@ class RegisterSerializer(serializers.Serializer):
         try:
             password_validation.validate_password(attrs["password"], user=candidate)
         except DjangoValidationError as exc:
-            errors["password"] = exc.messages
+            # Keeps the codes (password_too_similar), not only the texts
+            errors["password"] = get_error_detail(exc)
 
         if attrs["password"] != attrs["password_confirm"]:
-            errors["password_confirm"] = ["Passwords do not match"]
+            errors["password_confirm"] = [
+                ErrorDetail("Passwords do not match", code="passwords_do_not_match")
+            ]
 
         if errors:
             raise serializers.ValidationError(errors)

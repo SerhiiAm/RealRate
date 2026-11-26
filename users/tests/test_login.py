@@ -7,10 +7,13 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import AccessToken
 
 from users.models import User
+from users.tests.errors import error, invalid_input
 
 PASSWORD = "Str0ng-pass!"
 URL = reverse("users:login")
-INVALID = {"detail": "Invalid email or password"}
+INVALID = error("invalid_credentials", "Invalid email or password")
+EMAIL_REQUIRED = ("required", "Email is required")
+PASSWORD_REQUIRED = ("required", "Password is required")
 
 pytestmark = pytest.mark.django_db
 
@@ -121,21 +124,18 @@ def test_login_rejects_inactive_user_with_same_message(api_client, user):
 @pytest.mark.parametrize(
     ("data", "errors"),
     [
-        ({"password": PASSWORD}, {"email": ["Email is required"]}),
-        ({"email": " ", "password": PASSWORD}, {"email": ["Email is required"]}),
-        ({"email": "ivan@mail.com"}, {"password": ["Password is required"]}),
-        (
-            {"email": "ivan@mail.com", "password": ""},
-            {"password": ["Password is required"]},
-        ),
-        ({}, {"email": ["Email is required"], "password": ["Password is required"]}),
+        ({"password": PASSWORD}, {"email": [EMAIL_REQUIRED]}),
+        ({"email": " ", "password": PASSWORD}, {"email": [EMAIL_REQUIRED]}),
+        ({"email": "ivan@mail.com"}, {"password": [PASSWORD_REQUIRED]}),
+        ({"email": "ivan@mail.com", "password": ""}, {"password": [PASSWORD_REQUIRED]}),
+        ({}, {"email": [EMAIL_REQUIRED], "password": [PASSWORD_REQUIRED]}),
     ],
 )
 def test_login_requires_fields(api_client, data, errors):
     response = api_client.post(URL, data, format="json")
 
     assert response.status_code == 400
-    assert response.json() == errors
+    assert response.json() == invalid_input(errors)
 
 
 def test_login_works_with_broken_auth_header(api_client, user):

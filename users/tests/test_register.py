@@ -8,6 +8,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from users.models import Role, User
 from users.serializers import RegisterSerializer
+from users.tests.errors import invalid_input
 
 PASSWORD = "Str0ng-pass!"
 URL = reverse("users:register")
@@ -24,8 +25,15 @@ PASSWORD_MESSAGE = (
     "Password must be 8–64 characters, include at least 1 uppercase letter, "
     "1 number, 1 special character, and no spaces"
 )
-EMAIL_INVALID = "Please enter a valid email address"
-EMAIL_TAKEN = "This email is already registered"
+# (code, message) pairs of field errors
+FIRST_NAME_INVALID = ("invalid", FIRST_NAME_MESSAGE)
+LAST_NAME_INVALID = ("invalid", LAST_NAME_MESSAGE)
+PASSWORD_INVALID = ("password_invalid", PASSWORD_MESSAGE)
+EMAIL_REQUIRED = ("required", "Email is required")
+EMAIL_INVALID = ("invalid", "Please enter a valid email address")
+EMAIL_TAKEN = invalid_input(
+    {"email": [("email_taken", "This email is already registered")]}
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -133,38 +141,42 @@ def test_register_accepts_and_normalizes(api_client, changes, field, stored):
     ("changes", "errors"),
     [
         # email
-        ({"email": ...}, {"email": ["Email is required"]}),
-        ({"email": "  "}, {"email": ["Email is required"]}),
-        ({"email": None}, {"email": ["Email is required"]}),
+        ({"email": ...}, {"email": [EMAIL_REQUIRED]}),
+        ({"email": "  "}, {"email": [EMAIL_REQUIRED]}),
+        ({"email": None}, {"email": [EMAIL_REQUIRED]}),
         ({"email": "abc"}, {"email": [EMAIL_INVALID]}),
         ({"email": "x@localhost"}, {"email": [EMAIL_INVALID]}),
-        ({"email": "a" * 246 + "@mail.com"}, {"email": [EMAIL_INVALID]}),
+        (
+            {"email": "a" * 246 + "@mail.com"},
+            {"email": [("max_length", EMAIL_INVALID[1])]},
+        ),
         ({"email": "іван@mail.com"}, {"email": [EMAIL_INVALID]}),
         # first_name
-        ({"first_name": ...}, {"first_name": ["Name is required"]}),
-        ({"first_name": " "}, {"first_name": ["Name is required"]}),
-        ({"first_name": "І"}, {"first_name": [FIRST_NAME_MESSAGE]}),
-        ({"first_name": "А" * 21}, {"first_name": [FIRST_NAME_MESSAGE]}),
-        ({"first_name": "-Іван"}, {"first_name": [FIRST_NAME_MESSAGE]}),
-        ({"first_name": "Анна Марія"}, {"first_name": [FIRST_NAME_MESSAGE]}),
-        ({"first_name": "Іван2"}, {"first_name": [FIRST_NAME_MESSAGE]}),
-        ({"first_name": "Ыван"}, {"first_name": [FIRST_NAME_MESSAGE]}),
-        # last_name: optional, but checked when given
-        ({"last_name": "К"}, {"last_name": [LAST_NAME_MESSAGE]}),
-        ({"last_name": None}, {"last_name": [LAST_NAME_MESSAGE]}),
+        ({"first_name": ...}, {"first_name": [("required", "Name is required")]}),
+        ({"first_name": " "}, {"first_name": [("required", "Name is required")]}),
+        ({"first_name": "І"}, {"first_name": [FIRST_NAME_INVALID]}),
+        ({"first_name": "А" * 21}, {"first_name": [FIRST_NAME_INVALID]}),
+        ({"first_name": "-Іван"}, {"first_name": [FIRST_NAME_INVALID]}),
+        ({"first_name": "Анна Марія"}, {"first_name": [FIRST_NAME_INVALID]}),
+        ({"first_name": "Іван2"}, {"first_name": [FIRST_NAME_INVALID]}),
+        ({"first_name": "Ыван"}, {"first_name": [FIRST_NAME_INVALID]}),
+        # last_name: optional, but checked when given; null is a wrong value,
+        # not a missing one (so "invalid", not "required")
+        ({"last_name": "К"}, {"last_name": [LAST_NAME_INVALID]}),
+        ({"last_name": None}, {"last_name": [LAST_NAME_INVALID]}),
         # password
-        ({"password": ...}, {"password": ["Password is required"]}),
+        ({"password": ...}, {"password": [("required", "Password is required")]}),
         (
             {"password": "Str0ng pass!", "password_confirm": "Str0ng pass!"},
-            {"password": [PASSWORD_MESSAGE]},
+            {"password": [PASSWORD_INVALID]},
         ),
         (
             {"password": PASSWORD + " ", "password_confirm": PASSWORD + " "},
-            {"password": [PASSWORD_MESSAGE]},  # not trimmed silently
+            {"password": [PASSWORD_INVALID]},  # not trimmed silently
         ),
         (
             {"password": "Password1!", "password_confirm": "Password1!"},
-            {"password": ["This password is too common."]},
+            {"password": [("password_too_common", "This password is too common.")]},
         ),
         (
             {
@@ -172,16 +184,27 @@ def test_register_accepts_and_normalizes(api_client, changes, field, stored):
                 "password": "Ivanenko1!",
                 "password_confirm": "Ivanenko1!",
             },
-            {"password": ["The password is too similar to the email address."]},
+            {
+                "password": [
+                    (
+                        "password_too_similar",
+                        "The password is too similar to the email address.",
+                    )
+                ]
+            },
         ),
         # password_confirm
         (
             {"password_confirm": ...},
-            {"password_confirm": ["Please confirm your password"]},
+            {"password_confirm": [("required", "Please confirm your password")]},
         ),
         (
             {"password_confirm": PASSWORD + "?"},
-            {"password_confirm": ["Passwords do not match"]},
+            {
+                "password_confirm": [
+                    ("passwords_do_not_match", "Passwords do not match")
+                ]
+            },
         ),
         # several fields at once: all errors in one response
         (
@@ -193,8 +216,8 @@ def test_register_accepts_and_normalizes(api_client, changes, field, stored):
             },
             {
                 "email": [EMAIL_INVALID],
-                "first_name": [FIRST_NAME_MESSAGE],
-                "password": [PASSWORD_MESSAGE],
+                "first_name": [FIRST_NAME_INVALID],
+                "password": [PASSWORD_INVALID],
             },
         ),
     ],
@@ -203,7 +226,7 @@ def test_register_rejects_invalid_data(api_client, changes, errors):
     response = api_client.post(URL, payload(**changes), format="json")
 
     assert response.status_code == 400
-    assert response.json() == errors
+    assert response.json() == invalid_input(errors)
     assert not User.objects.exists()
 
 
@@ -213,7 +236,7 @@ def test_register_rejects_nul_character_with_400(api_client, field):
     response = api_client.post(URL, payload(**{field: "iv\x00an"}), format="json")
 
     assert response.status_code == 400
-    assert field in response.json()
+    assert field in response.json()["fields"]
 
 
 def test_register_rejects_taken_email_in_other_case(api_client):
@@ -222,7 +245,7 @@ def test_register_rejects_taken_email_in_other_case(api_client):
     response = api_client.post(URL, payload(email="IVAN@Mail.com"), format="json")
 
     assert response.status_code == 400
-    assert response.json() == {"email": [EMAIL_TAKEN]}
+    assert response.json() == EMAIL_TAKEN
     assert User.objects.count() == 1
 
 
@@ -247,5 +270,5 @@ def test_register_race_on_same_email_returns_400(api_client, monkeypatch):
     response = api_client.post(URL, payload(), format="json")
 
     assert response.status_code == 400
-    assert response.json() == {"email": [EMAIL_TAKEN]}
+    assert response.json() == EMAIL_TAKEN
     assert User.objects.count() == 1
