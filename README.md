@@ -68,6 +68,13 @@ Django does not read `.env` by itself — load it in your IDE
 Migrations are not applied automatically here. After pulling new code, run
 `manage.py migrate` from your IDE (same Run Configuration with `.env`).
 
+## Access
+
+- Every endpoint requires a logged-in user (`Authorization: Bearer <access>`),
+  otherwise `401`.
+- Open to everyone: registration, login, refresh, logout and API docs
+  (`/api/docs/`, `/api/schema/`).
+
 ## Users
 
 - Login by **email + password**, there is no username.
