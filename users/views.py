@@ -1,12 +1,10 @@
-from django.contrib.auth.models import update_last_login
-from django.db import transaction
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
-from rest_framework_simplejwt.tokens import RefreshToken
 
+from . import services
 from .serializers import (
     AuthResponseSerializer,
     LoginSerializer,
@@ -18,14 +16,9 @@ from .serializers import (
 from .tokens import revoke_refresh_token, rotate_refresh_token
 
 
-def auth_response_data(user):
-    """User block + new JWT pair (the refresh token is recorded for blacklisting)."""
-    refresh = RefreshToken.for_user(user)
-    return {
-        "user": UserSerializer(user).data,
-        "access": str(refresh.access_token),
-        "refresh": str(refresh),
-    }
+def auth_response(user, tokens, status_code):
+    """Response of register and login: user block + token pair."""
+    return Response({"user": UserSerializer(user).data, **tokens}, status=status_code)
 
 
 class PublicAuthViewMixin:
@@ -55,13 +48,9 @@ class RegisterView(PublicAuthViewMixin, generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # One transaction: if tokens fail, the user is not left half-registered
-        with transaction.atomic():
-            user = serializer.save()
-            update_last_login(None, user)  # analytics: registration = first login
-            data = auth_response_data(user)
+        user, tokens = services.register(**serializer.validated_data)
 
-        return Response(data, status=status.HTTP_201_CREATED)
+        return auth_response(user, tokens, status.HTTP_201_CREATED)
 
 
 class LoginView(PublicAuthViewMixin, generics.GenericAPIView):
@@ -77,11 +66,9 @@ class LoginView(PublicAuthViewMixin, generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
 
-        with transaction.atomic():
-            update_last_login(None, user)
-            data = auth_response_data(user)
+        tokens = services.log_in(user)
 
-        return Response(data, status=status.HTTP_200_OK)
+        return auth_response(user, tokens, status.HTTP_200_OK)
 
 
 class RefreshView(PublicAuthViewMixin, generics.GenericAPIView):
