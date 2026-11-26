@@ -176,6 +176,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    # Every endpoint requires login unless it explicitly allows anyone
+    # (register, login, refresh, logout, API docs)
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     # Brute-force protection for login, counted per client IP
     "DEFAULT_THROTTLE_RATES": {"login": "10/min"},
     # How many proxies (Nginx) stand in front of Django. 0 = trust only the
