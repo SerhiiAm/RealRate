@@ -75,6 +75,54 @@ Migrations are not applied automatically here. After pulling new code, run
 - Open to everyone: registration, login, refresh, logout and API docs
   (`/api/docs/`, `/api/schema/`).
 
+## Errors
+
+Every error has the same format. `code` never changes, check it in code;
+`message` is text for people and may change.
+
+```
+{"code": "invalid_credentials", "message": "Invalid email or password"}
+```
+
+Field errors (`400`) list all fields at once:
+
+```
+{"code": "validation_error", "message": "Invalid input",
+ "fields": {"email": [{"code": "email_taken", "message": "This email is already registered"}]}}
+```
+
+Field codes:
+
+| Code | When |
+|---|---|
+| `required` | field is missing, empty or `null` |
+| `invalid` | wrong format (email, first or last name) |
+| `max_length` | email longer than 254 characters |
+| `email_taken` | email is already registered |
+| `password_invalid` | password breaks the rules (length, letters, digits, special characters, spaces) |
+| `password_too_common` | password is too common |
+| `password_too_similar` | password is too similar to the email or name |
+| `passwords_do_not_match` | `password_confirm` differs from `password` |
+
+Other codes:
+
+| Code | Status | When |
+|---|---|---|
+| `invalid_credentials` | 401 | wrong email or password, or deactivated account (login) |
+| `invalid_refresh_token` | 401 | refresh token expired, already used or logged out |
+| `throttled` | 429 | too many login attempts |
+| `parse_error` | 400 | request body is not valid JSON |
+| `method_not_allowed` | 405 | wrong HTTP method |
+| `unsupported_media_type` | 415 | request body is not JSON or a form (e.g. `text/plain`) |
+| `not_acceptable` | 406 | client asks for a response format other than JSON |
+| `not_authenticated` | 401 | no access token (with `/me` and other protected endpoints) |
+| `token_not_valid` | 401 | access token broken or expired (with `/me` and other protected endpoints) |
+| `user_inactive` / `user_not_found` | 401 | access token of a deactivated / deleted user (with `/me` and other protected endpoints) |
+| `permission_denied` | 403 | not allowed for this user (with upcoming endpoints: places, reviews) |
+| `not_found` | 404 | object does not exist (with upcoming endpoints: places, reviews) |
+
+Server errors (`500`) and unknown URLs (`404`) are not in this format.
+
 ## Users
 
 - Login by **email + password**, there is no username.
@@ -105,7 +153,7 @@ Migrations are not applied automatically here. After pulling new code, run
   pair (access lives 15 minutes, refresh 3 days).
 - A new user always gets role `user`; `role`, `is_staff` and other extra
   fields in the request are ignored.
-- Errors are returned per field, all at once: `{"email": ["..."]}`.
+- Errors are returned per field, all at once (see [Errors](#errors)).
 - Registration counts as the first login (`last_login` is set).
 
 ### Login, refresh and logout
@@ -113,7 +161,7 @@ Migrations are not applied automatically here. After pulling new code, run
 - Login: email (any case) + password. The response is the same as for
   registration: the user and a token pair. `last_login` is updated.
 - A wrong password, an unknown email and a deactivated account all get the
-  same error: `401 {"detail": "Invalid email or password"}`.
+  same error: `401`, code `invalid_credentials`.
 - At most 10 login attempts per minute from one IP; then `429`, even with
   the right password.
 - Refresh: send the refresh token, get a new pair. A refresh token works
@@ -128,7 +176,7 @@ Migrations are not applied automatically here. After pulling new code, run
   expires (max 15 minutes), so the frontend must delete both tokens.
 - If the refresh token can't be used (expired, already used, logged out,
   account deactivated), the answer is always
-  `401 {"detail": "Invalid or expired refresh token"}`: the user has to log
+  `401`, code `invalid_refresh_token`: the user has to log
   in again.
 
 API endpoints are documented in Swagger: http://localhost:8000/api/docs/
