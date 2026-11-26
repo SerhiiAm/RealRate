@@ -168,6 +168,36 @@ MAILERS = {
 }
 
 
+# Logging
+# https://docs.djangoproject.com/en/6.1/topics/logging/
+# Everything goes to the console, so it shows up in `docker logs`.
+# Django's default prints to the console only with DEBUG=True and sends
+# errors (500 tracebacks) only to mail_admins otherwise.
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "{asctime} {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        # Replaces Django's default handlers; no propagate, or every
+        # message would be printed twice (here and by root)
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
+
+
 # Django REST Framework
 # https://www.django-rest-framework.org/api-guide/settings/
 
