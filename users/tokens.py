@@ -23,6 +23,10 @@ Reason = RefreshTokenRevocation.Reason
 INVALID_REFRESH_MESSAGE = "Invalid or expired refresh token"
 
 
+def _invalid_refresh():
+    return AuthenticationFailed(INVALID_REFRESH_MESSAGE, code="invalid_refresh_token")
+
+
 class _RefreshTokenNoBlacklistCheck(RefreshToken):
     """Checks signature, expiry and type, but not the blacklist.
 
@@ -38,16 +42,16 @@ def _decode(raw_token):
     try:
         return _RefreshTokenNoBlacklistCheck(raw_token)
     except TokenError:
-        raise AuthenticationFailed(INVALID_REFRESH_MESSAGE) from None
+        raise _invalid_refresh() from None
 
 
 def _get_outstanding(token):
     try:
         outstanding = OutstandingToken.objects.get(jti=token["jti"])
     except OutstandingToken.DoesNotExist:
-        raise AuthenticationFailed(INVALID_REFRESH_MESSAGE) from None
+        raise _invalid_refresh() from None
     if outstanding.user_id is None:  # the user was deleted
-        raise AuthenticationFailed(INVALID_REFRESH_MESSAGE)
+        raise _invalid_refresh()
     return outstanding
 
 
@@ -100,7 +104,7 @@ def rotate_refresh_token(raw_token):
         # Own transaction, committed even though this request fails
         _revoke_all_for_user(outstanding.user_id)
     # LOGOUT / REUSE_DETECTED: an old tab or a retry, not a theft
-    raise AuthenticationFailed(INVALID_REFRESH_MESSAGE)
+    raise _invalid_refresh()
 
 
 def revoke_refresh_token(raw_token):

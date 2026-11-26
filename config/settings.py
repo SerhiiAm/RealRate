@@ -209,6 +209,8 @@ REST_FRAMEWORK = {
     # Every endpoint requires login unless it explicitly allows anyone
     # (register, login, refresh, logout, API docs)
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    # One error format: {"code": ..., "message": ...} (see config/exceptions.py)
+    "EXCEPTION_HANDLER": "config.exceptions.api_exception_handler",
     # Brute-force protection for login, counted per client IP
     "DEFAULT_THROTTLE_RATES": {"login": "10/min"},
     # How many proxies (Nginx) stand in front of Django. 0 = trust only the

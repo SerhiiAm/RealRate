@@ -9,7 +9,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
-from .serializers import EMAIL_TAKEN_MESSAGE
+from .serializers import EMAIL_TAKEN_CODE, EMAIL_TAKEN_MESSAGE
 
 
 def log_in(user):
@@ -34,7 +34,7 @@ def _create_user(email, first_name, last_name, password):
         # Race: the same email was registered between validation and INSERT
         if User.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError(
-                {"email": [EMAIL_TAKEN_MESSAGE]}
+                {"email": [EMAIL_TAKEN_MESSAGE]}, code=EMAIL_TAKEN_CODE
             ) from None
         raise
 

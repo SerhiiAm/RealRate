@@ -6,12 +6,13 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.models import RefreshTokenRevocation, User
+from users.tests.errors import error, invalid_input
 
 Reason = RefreshTokenRevocation.Reason
 PASSWORD = "Str0ng-pass!"
 URL = reverse("users:logout")
 REFRESH_URL = reverse("users:refresh")
-INVALID = {"detail": "Invalid or expired refresh token"}
+INVALID = error("invalid_refresh_token", "Invalid or expired refresh token")
 
 pytestmark = pytest.mark.django_db
 
@@ -125,4 +126,6 @@ def test_logout_requires_token(api_client, data):
     response = api_client.post(URL, data, format="json")
 
     assert response.status_code == 400
-    assert response.json() == {"refresh": ["Refresh token is required"]}
+    assert response.json() == invalid_input(
+        {"refresh": [("required", "Refresh token is required")]}
+    )
