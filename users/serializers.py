@@ -1,6 +1,5 @@
 from django.contrib.auth import authenticate, password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import IntegrityError, transaction
 from rest_framework import exceptions, serializers
 
 from .models import User
@@ -39,7 +38,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class AuthResponseSerializer(serializers.Serializer):
-    """Response of register (and later login): user block + JWT pair.
+    """Response of register and login: user block + JWT pair.
 
     Used only to describe the response in Swagger.
     """
@@ -169,18 +168,7 @@ class RegisterSerializer(serializers.Serializer):
 
         if errors:
             raise serializers.ValidationError(errors)
-        return attrs
 
-    def create(self, validated_data):
-        validated_data.pop("password_confirm")
-        try:
-            # Savepoint: a failed INSERT must not break the outer transaction
-            with transaction.atomic():
-                return User.objects.create_user(**validated_data)
-        except IntegrityError:
-            # Race: the same email was registered between validation and INSERT
-            if User.objects.filter(email__iexact=validated_data["email"]).exists():
-                raise serializers.ValidationError(
-                    {"email": [EMAIL_TAKEN_MESSAGE]}
-                ) from None
-            raise
+        # Only needed for the check above; the user is created by services.register
+        attrs.pop("password_confirm")
+        return attrs
