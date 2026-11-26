@@ -14,6 +14,9 @@ Not yet: profile (`/me`).
 - Python 3.13, Django 6.1, Django REST Framework
 - PostgreSQL 17
 - Poetry, Docker Compose
+- djangorestframework-simplejwt (JWT authentication)
+- Argon2 (password hashing)
+- WhiteNoise (static files)
 - drf-spectacular (Swagger API docs)
 - pytest + pytest-django (tests)
 - Black (formatter), Ruff (linter)
