@@ -80,15 +80,17 @@ Migrations are not applied automatically here. After pulling new code, run
 Every error has the same format. `code` never changes, check it in code;
 `message` is text for people and may change.
 
+`message` is always in Ukrainian, whatever language the browser asks for.
+
 ```
-{"code": "invalid_credentials", "message": "Invalid email or password"}
+{"code": "invalid_credentials", "message": "Неправильний email або пароль"}
 ```
 
 Field errors (`400`) list all fields at once:
 
 ```
-{"code": "validation_error", "message": "Invalid input",
- "fields": {"email": [{"code": "email_taken", "message": "This email is already registered"}]}}
+{"code": "validation_error", "message": "Некоректні дані",
+ "fields": {"email": [{"code": "email_taken", "message": "Цей email уже зареєстровано"}]}}
 ```
 
 Field codes:
@@ -195,3 +197,17 @@ Tests use a separate database (`test_<POSTGRES_DB>`), created and deleted automa
 poetry run black .
 poetry run ruff check .
 ```
+
+## Translations
+
+Texts in code are English, wrapped in `_()`; Ukrainian translations are in
+`locale/uk/LC_MESSAGES/django.po`. After adding or changing a text:
+
+```
+docker compose exec web python manage.py makemessages -l uk --ignore=.venv --ignore=staticfiles --ignore=media
+# fill in the empty msgstr "" in django.po, then:
+docker compose exec web python manage.py compilemessages --ignore=.venv
+```
+
+Commit both `django.po` and `django.mo`. Without `--ignore=.venv` the
+commands also go through the installed packages.
