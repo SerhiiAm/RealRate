@@ -14,26 +14,24 @@ PASSWORD = "Str0ng-pass!"
 URL = reverse("users:register")
 
 FIRST_NAME_MESSAGE = (
-    "Name must be 2–20 characters, start with a letter and contain only "
-    "letters, hyphens, or apostrophes"
+    "Ім’я має містити 2–20 символів, починатися з літери й містити лише "
+    "літери, дефіс або апостроф"
 )
 LAST_NAME_MESSAGE = (
-    "Last name must be 2–20 characters, start with a letter and contain only "
-    "letters, hyphens, or apostrophes"
+    "Прізвище має містити 2–20 символів, починатися з літери й містити лише "
+    "літери, дефіс або апостроф"
 )
 PASSWORD_MESSAGE = (
-    "Password must be 8–64 characters, include at least 1 uppercase letter, "
-    "1 number, 1 special character, and no spaces"
+    "Пароль має містити 8–64 символи, щонайменше 1 велику літеру, 1 цифру, "
+    "1 спеціальний символ і не містити пробілів"
 )
 # (code, message) pairs of field errors
 FIRST_NAME_INVALID = ("invalid", FIRST_NAME_MESSAGE)
 LAST_NAME_INVALID = ("invalid", LAST_NAME_MESSAGE)
 PASSWORD_INVALID = ("password_invalid", PASSWORD_MESSAGE)
-EMAIL_REQUIRED = ("required", "Email is required")
-EMAIL_INVALID = ("invalid", "Please enter a valid email address")
-EMAIL_TAKEN = invalid_input(
-    {"email": [("email_taken", "This email is already registered")]}
-)
+EMAIL_REQUIRED = ("required", "Вкажіть email")
+EMAIL_INVALID = ("invalid", "Введіть коректну адресу електронної пошти")
+EMAIL_TAKEN = invalid_input({"email": [("email_taken", "Цей email уже зареєстровано")]})
 
 pytestmark = pytest.mark.django_db
 
@@ -152,8 +150,8 @@ def test_register_accepts_and_normalizes(api_client, changes, field, stored):
         ),
         ({"email": "іван@mail.com"}, {"email": [EMAIL_INVALID]}),
         # first_name
-        ({"first_name": ...}, {"first_name": [("required", "Name is required")]}),
-        ({"first_name": " "}, {"first_name": [("required", "Name is required")]}),
+        ({"first_name": ...}, {"first_name": [("required", "Вкажіть ім’я")]}),
+        ({"first_name": " "}, {"first_name": [("required", "Вкажіть ім’я")]}),
         ({"first_name": "І"}, {"first_name": [FIRST_NAME_INVALID]}),
         ({"first_name": "А" * 21}, {"first_name": [FIRST_NAME_INVALID]}),
         ({"first_name": "-Іван"}, {"first_name": [FIRST_NAME_INVALID]}),
@@ -165,7 +163,7 @@ def test_register_accepts_and_normalizes(api_client, changes, field, stored):
         ({"last_name": "К"}, {"last_name": [LAST_NAME_INVALID]}),
         ({"last_name": None}, {"last_name": [LAST_NAME_INVALID]}),
         # password
-        ({"password": ...}, {"password": [("required", "Password is required")]}),
+        ({"password": ...}, {"password": [("required", "Вкажіть пароль")]}),
         (
             {"password": "Str0ng pass!", "password_confirm": "Str0ng pass!"},
             {"password": [PASSWORD_INVALID]},
@@ -176,7 +174,7 @@ def test_register_accepts_and_normalizes(api_client, changes, field, stored):
         ),
         (
             {"password": "Password1!", "password_confirm": "Password1!"},
-            {"password": [("password_too_common", "This password is too common.")]},
+            {"password": [("password_too_common", "Пароль занадто поширений.")]},
         ),
         (
             {
@@ -188,7 +186,7 @@ def test_register_accepts_and_normalizes(api_client, changes, field, stored):
                 "password": [
                     (
                         "password_too_similar",
-                        "The password is too similar to the email address.",
+                        "Пароль надто схожий на email.",
                     )
                 ]
             },
@@ -196,15 +194,11 @@ def test_register_accepts_and_normalizes(api_client, changes, field, stored):
         # password_confirm
         (
             {"password_confirm": ...},
-            {"password_confirm": [("required", "Please confirm your password")]},
+            {"password_confirm": [("required", "Підтвердьте пароль")]},
         ),
         (
             {"password_confirm": PASSWORD + "?"},
-            {
-                "password_confirm": [
-                    ("passwords_do_not_match", "Passwords do not match")
-                ]
-            },
+            {"password_confirm": [("passwords_do_not_match", "Паролі не збігаються")]},
         ),
         # several fields at once: all errors in one response
         (

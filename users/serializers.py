@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate, password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.translation import gettext_lazy as _
 from rest_framework import exceptions, serializers
 from rest_framework.exceptions import ErrorDetail
 from rest_framework.fields import get_error_detail
@@ -11,19 +12,19 @@ from .validators import (
     validate_email_domain,
 )
 
-FIRST_NAME_MESSAGE = (
+FIRST_NAME_MESSAGE = _(
     "Name must be 2–20 characters, start with a letter and contain only "
     "letters, hyphens, or apostrophes"
 )
-LAST_NAME_MESSAGE = (
+LAST_NAME_MESSAGE = _(
     "Last name must be 2–20 characters, start with a letter and contain only "
     "letters, hyphens, or apostrophes"
 )
-EMAIL_TAKEN_MESSAGE = "This email is already registered"
+EMAIL_TAKEN_MESSAGE = _("This email is already registered")
 EMAIL_TAKEN_CODE = "email_taken"
 # One message for a wrong password, an unknown email and an inactive account:
 # otherwise anyone could find out which emails are registered
-INVALID_CREDENTIALS_MESSAGE = "Invalid email or password"
+INVALID_CREDENTIALS_MESSAGE = _("Invalid email or password")
 
 
 def required_messages(message):
@@ -62,20 +63,22 @@ class RefreshSerializer(serializers.Serializer):
     """Input of refresh and logout."""
 
     refresh = serializers.CharField(
-        error_messages=required_messages("Refresh token is required")
+        error_messages=required_messages(_("Refresh token is required"))
     )
 
 
 class LoginSerializer(serializers.Serializer):
     # CharField, not EmailField: a badly formatted email simply doesn't match
     # any account, so it gets the same "Invalid email or password"
-    email = serializers.CharField(error_messages=required_messages("Email is required"))
+    email = serializers.CharField(
+        error_messages=required_messages(_("Email is required"))
+    )
     # Not trimmed, same as in registration
     password = serializers.CharField(
         write_only=True,
         trim_whitespace=False,
         style={"input_type": "password"},
-        error_messages=required_messages("Password is required"),
+        error_messages=required_messages(_("Password is required")),
     )
 
     def validate(self, attrs):
@@ -106,13 +109,13 @@ class RegisterSerializer(serializers.Serializer):
         max_length=254,
         validators=[validate_email_domain],
         error_messages={
-            **required_messages("Email is required"),
+            **required_messages(_("Email is required")),
             "invalid": EMAIL_INVALID_MESSAGE,
             "max_length": EMAIL_INVALID_MESSAGE,
         },
     )
     first_name = serializers.CharField(
-        error_messages=required_messages("Name is required"),
+        error_messages=required_messages(_("Name is required")),
     )
     last_name = serializers.CharField(
         required=False,
@@ -127,13 +130,13 @@ class RegisterSerializer(serializers.Serializer):
         write_only=True,
         trim_whitespace=False,
         style={"input_type": "password"},
-        error_messages=required_messages("Password is required"),
+        error_messages=required_messages(_("Password is required")),
     )
     password_confirm = serializers.CharField(
         write_only=True,
         trim_whitespace=False,
         style={"input_type": "password"},
-        error_messages=required_messages("Please confirm your password"),
+        error_messages=required_messages(_("Please confirm your password")),
     )
 
     def validate_email(self, value):
@@ -177,7 +180,7 @@ class RegisterSerializer(serializers.Serializer):
 
         if attrs["password"] != attrs["password_confirm"]:
             errors["password_confirm"] = [
-                ErrorDetail("Passwords do not match", code="passwords_do_not_match")
+                ErrorDetail(_("Passwords do not match"), code="passwords_do_not_match")
             ]
 
         if errors:

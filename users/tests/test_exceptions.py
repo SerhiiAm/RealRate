@@ -50,16 +50,14 @@ def test_no_token():
     response = get(ProtectedView)
 
     assert response.status_code == 401
-    assert response.data == error(
-        "not_authenticated", "Authentication credentials were not provided."
-    )
+    assert response.data == error("not_authenticated", "Потрібно увійти в акаунт")
 
 
 def test_broken_token_gets_short_message():
     response = get(ProtectedView, HTTP_AUTHORIZATION="Bearer broken")
 
     assert response.status_code == 401
-    assert response.data == error("token_not_valid", "Token is invalid or expired")
+    assert response.data == error("token_not_valid", "Токен недійсний або прострочений")
 
 
 def test_token_of_inactive_user(user):
@@ -70,7 +68,7 @@ def test_token_of_inactive_user(user):
     response = get(ProtectedView, **headers)
 
     assert response.status_code == 401
-    assert response.data == error("user_inactive", "User is inactive")
+    assert response.data == error("user_inactive", "Акаунт деактивовано")
 
 
 def test_valid_token_is_not_an_error(user):
@@ -83,11 +81,15 @@ def test_valid_token_is_not_an_error(user):
 @pytest.mark.parametrize(
     ("exception", "status_code", "body"),
     [
-        (Http404("No User matches the given query."), 404, ("not_found", "Not found.")),
+        (
+            Http404("No User matches the given query."),
+            404,
+            ("not_found", "Не знайдено."),
+        ),
         (
             PermissionDenied(),
             403,
-            ("permission_denied", "You do not have permission to perform this action."),
+            ("permission_denied", "У вас нема дозволу робити цю дію."),
         ),
         # Error not tied to a field
         (
@@ -133,5 +135,22 @@ def test_throttled(user):
     response = client.post(reverse("users:login"), data, format="json")
 
     assert response.status_code == 429
-    assert response.json()["code"] == "throttled"
+    # DRF's own Ukrainian text is half English ("... Expected available in")
+    assert response.json() == error("throttled", "Забагато запитів, спробуйте пізніше")
     assert "Retry-After" in response.headers
+
+
+@pytest.mark.django_db
+def test_browser_language_does_not_switch_to_english():
+    # Browsers send Accept-Language themselves; the API stays Ukrainian.
+    # Refresh, not login: login's limit is used up by test_throttled
+    response = APIClient().post(
+        reverse("users:refresh"),
+        {"refresh": "not-a-token"},
+        format="json",
+        HTTP_ACCEPT_LANGUAGE="en-US,en;q=0.9",
+    )
+
+    assert response.json() == error(
+        "invalid_refresh_token", "Refresh-токен недійсний або прострочений"
+    )

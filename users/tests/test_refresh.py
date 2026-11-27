@@ -20,7 +20,7 @@ from users.tests.errors import error, invalid_input
 Reason = RefreshTokenRevocation.Reason
 PASSWORD = "Str0ng-pass!"
 URL = reverse("users:refresh")
-INVALID = error("invalid_refresh_token", "Invalid or expired refresh token")
+INVALID = error("invalid_refresh_token", "Refresh-токен недійсний або прострочений")
 
 
 @pytest.fixture
@@ -211,7 +211,7 @@ def test_refresh_requires_token(api_client, data):
 
     assert response.status_code == 400
     assert response.json() == invalid_input(
-        {"refresh": [("required", "Refresh token is required")]}
+        {"refresh": [("required", "Потрібен refresh-токен")]}
     )
 
 

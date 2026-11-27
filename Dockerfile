@@ -7,6 +7,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# gettext: makemessages / compilemessages (translations in locale/)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gettext && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir poetry==2.5.1
 
 COPY pyproject.toml poetry.lock ./

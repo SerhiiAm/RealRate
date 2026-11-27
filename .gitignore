@@ -55,6 +55,8 @@ cover/
 # Translations
 *.mo
 *.pot
+# Our compiled translations are committed: the server uses them as is
+!locale/**/*.mo
 
 # Django stuff:
 *.log

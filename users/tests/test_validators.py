@@ -6,11 +6,11 @@ from django.core.management import CommandError, call_command
 from users.models import User
 from users.validators import PasswordRulesValidator, validate_email_domain
 
-EMAIL_MESSAGE = "Please enter a valid email address"
+EMAIL_MESSAGE = "Введіть коректну адресу електронної пошти"
 
 RULES_MESSAGE = (
-    "Password must be 8–64 characters, include at least 1 uppercase letter, "
-    "1 number, 1 special character, and no spaces"
+    "Пароль має містити 8–64 символи, щонайменше 1 велику літеру, 1 цифру, "
+    "1 спеціальний символ і не містити пробілів"
 )
 
 
@@ -57,11 +57,11 @@ def test_password_rules_reject_invalid(password):
     ("password", "email", "message"),
     [
         ("short", "user@mail.com", RULES_MESSAGE),
-        ("Password1!", "user@mail.com", "This password is too common."),
+        ("Password1!", "user@mail.com", "Пароль занадто поширений."),
         (
             "Ivanenko1!",
             "ivanenko@mail.com",
-            "The password is too similar to the email address.",
+            "Пароль надто схожий на email.",
         ),
     ],
 )
@@ -101,7 +101,7 @@ def test_email_domain_accepts_others(email):
     ("email", "message"),
     [
         ("x@localhost", EMAIL_MESSAGE),  # our validator
-        ("abc", "Enter a valid email address."),  # Django's validator
+        ("abc", "Введіть коректну адресу електронної пошти."),  # Django's validator
     ],
 )
 def test_user_email_field_shows_one_error(email, message):
