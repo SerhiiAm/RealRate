@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.token_blacklist.models import (
@@ -41,6 +42,12 @@ def reason_of(raw_token):
     jti = RefreshToken(raw_token, verify=False)["jti"]
     revocation = RefreshTokenRevocation.objects.filter(token__jti=jti).first()
     return revocation.reason if revocation else None
+
+
+def is_blacklisted(raw_token):
+    # So simplejwt's own tools (admin, check_blacklist) also see it as revoked
+    jti = RefreshToken(raw_token, verify=False)["jti"]
+    return BlacklistedToken.objects.filter(token__jti=jti).exists()
 
 
 def post_refresh(client, raw_token):
@@ -86,7 +93,42 @@ def test_reuse_of_rotated_token_ends_all_sessions(api_client, user):
     assert reason_of(phone) == Reason.REUSE_DETECTED
     assert reason_of(stolen) == Reason.ROTATED  # keeps its original reason
     assert reason_of(other_user_token) is None  # other users are not touched
+    assert is_blacklisted(owner_new) and is_blacklisted(phone)
+    assert not is_blacklisted(other_user_token)
     assert post_refresh(api_client, owner_new).status_code == 401
+
+
+@pytest.mark.django_db
+def test_ending_all_sessions_takes_same_queries_for_any_number_of_sessions():
+    # No query per session (N+1): a user with many devices costs the same
+    def queries_to_end_sessions(email, sessions):
+        owner = User.objects.create_user(email, PASSWORD)
+        for _ in range(sessions):
+            new_refresh(owner)
+        with CaptureQueriesContext(connection) as queries:
+            tokens._revoke_all_for_user(owner.id)
+        assert (
+            RefreshTokenRevocation.objects.filter(
+                token__user=owner, reason=Reason.REUSE_DETECTED
+            ).count()
+            == sessions
+        )
+        return len(queries)
+
+    assert queries_to_end_sessions("a@mail.com", 2) == queries_to_end_sessions(
+        "b@mail.com", 10
+    )
+
+
+@pytest.mark.django_db
+def test_ending_all_sessions_when_a_token_is_already_blacklisted(user):
+    # E.g. blacklisted by hand in simplejwt's admin: no revocation row yet
+    raw = new_refresh(user)
+    RefreshToken(raw).blacklist()
+
+    tokens._revoke_all_for_user(user.id)
+
+    assert reason_of(raw) == Reason.REUSE_DETECTED
 
 
 @pytest.mark.django_db
@@ -104,14 +146,11 @@ def test_reuse_after_logout_is_not_a_theft(api_client, user):
 
 @pytest.mark.django_db
 def test_revoked_token_is_in_simplejwt_blacklist(api_client, user):
-    # So simplejwt's own tools (admin, check_blacklist) also see it as revoked
     old = new_refresh(user)
 
     post_refresh(api_client, old)
 
-    assert BlacklistedToken.objects.filter(
-        token__jti=RefreshToken(old, verify=False)["jti"]
-    ).exists()
+    assert is_blacklisted(old)
 
 
 def expired_refresh(user):

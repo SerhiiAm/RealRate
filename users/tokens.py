@@ -73,14 +73,30 @@ def _revoke(outstanding, reason):
 
 
 def _revoke_all_for_user(user_id):
-    """Theft: revoke every still active refresh token of the user."""
+    """Theft: revoke every still active refresh token of the user.
+
+    Bulk inserts: the number of queries doesn't grow with the number of
+    sessions. ignore_conflicts skips tokens that already have a row (both
+    are one-to-one), like get_or_create in _revoke.
+    """
     with transaction.atomic():
         _lock_user(user_id)
-        active = OutstandingToken.objects.filter(
-            user_id=user_id, revocation__isnull=True
+        active_ids = list(
+            OutstandingToken.objects.filter(
+                user_id=user_id, revocation__isnull=True
+            ).values_list("pk", flat=True)
         )
-        for outstanding in active:
-            _revoke(outstanding, Reason.REUSE_DETECTED)
+        BlacklistedToken.objects.bulk_create(
+            [BlacklistedToken(token_id=pk) for pk in active_ids],
+            ignore_conflicts=True,
+        )
+        RefreshTokenRevocation.objects.bulk_create(
+            [
+                RefreshTokenRevocation(token_id=pk, reason=Reason.REUSE_DETECTED)
+                for pk in active_ids
+            ],
+            ignore_conflicts=True,
+        )
 
 
 def rotate_refresh_token(raw_token):
