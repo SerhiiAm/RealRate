@@ -11,9 +11,9 @@ from users.tests.errors import error, invalid_input
 
 PASSWORD = "Str0ng-pass!"
 URL = reverse("users:login")
-INVALID = error("invalid_credentials", "Invalid email or password")
-EMAIL_REQUIRED = ("required", "Email is required")
-PASSWORD_REQUIRED = ("required", "Password is required")
+INVALID = error("invalid_credentials", "Неправильний email або пароль")
+EMAIL_REQUIRED = ("required", "Вкажіть email")
+PASSWORD_REQUIRED = ("required", "Вкажіть пароль")
 
 pytestmark = pytest.mark.django_db
 

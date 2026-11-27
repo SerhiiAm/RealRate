@@ -10,12 +10,26 @@ The frontend checks `code` (stable); `message` is text for people.
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.http import Http404
+from django.utils.translation import gettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.settings import api_settings
 from rest_framework.views import exception_handler
-from rest_framework_simplejwt.exceptions import InvalidToken
 
-VALIDATION_ERROR = {"code": "validation_error", "message": "Invalid input"}
+INVALID_INPUT_MESSAGE = _("Invalid input")
+
+# Our texts for these codes: simplejwt has no Ukrainian translation
+# (its texts would stay English), DRF's Ukrainian "throttled" is half English
+# and "not_authenticated" is clumsy
+MESSAGES = {
+    "token_not_valid": _("Token is invalid or expired"),
+    "user_inactive": _("User is inactive"),
+    "user_not_found": _("User not found"),
+    "bad_authorization_header": _(
+        "Authorization header must contain two space-delimited values"
+    ),
+    "not_authenticated": _("Authentication credentials were not provided"),
+    "throttled": _("Too many requests, try again later"),
+}
 
 # DRF has three codes for "the field is not filled in"; for the frontend
 # it is one situation, and our messages are already the same
@@ -38,17 +52,18 @@ def _field_errors(detail):
 
 def _single_error(exc):
     detail = exc.detail
-    if isinstance(exc, InvalidToken):
-        # simplejwt's text ("Given token not valid for any token type") and
-        # its extra "messages" list are not useful for the frontend
-        return {"code": exc.default_code, "message": str(exc.default_detail)}
     if isinstance(detail, dict):
-        # simplejwt's other errors: {"detail": "...", "code": "user_inactive"}
-        return {
+        # simplejwt's invalid token: {"detail": "...", "messages": [...]};
+        # its "messages" list is not useful for the frontend
+        error = {
             "code": str(detail.get("code", exc.default_code)),
             "message": str(detail.get("detail", exc.default_detail)),
         }
-    return _error(detail)
+    else:
+        error = _error(detail)
+    if error["code"] in MESSAGES:
+        error["message"] = str(MESSAGES[error["code"]])
+    return error
 
 
 def api_exception_handler(exc, context):
@@ -67,7 +82,11 @@ def api_exception_handler(exc, context):
         detail = exc.detail
         if not isinstance(detail, dict):
             detail = {api_settings.NON_FIELD_ERRORS_KEY: detail}
-        response.data = {**VALIDATION_ERROR, "fields": _field_errors(detail)}
+        response.data = {
+            "code": "validation_error",
+            "message": str(INVALID_INPUT_MESSAGE),
+            "fields": _field_errors(detail),
+        }
     else:
         response.data = _single_error(exc)
     return response

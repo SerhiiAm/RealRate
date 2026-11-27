@@ -12,7 +12,7 @@ Reason = RefreshTokenRevocation.Reason
 PASSWORD = "Str0ng-pass!"
 URL = reverse("users:logout")
 REFRESH_URL = reverse("users:refresh")
-INVALID = error("invalid_refresh_token", "Invalid or expired refresh token")
+INVALID = error("invalid_refresh_token", "Refresh-токен недійсний або прострочений")
 
 pytestmark = pytest.mark.django_db
 
@@ -127,5 +127,5 @@ def test_logout_requires_token(api_client, data):
 
     assert response.status_code == 400
     assert response.json() == invalid_input(
-        {"refresh": [("required", "Refresh token is required")]}
+        {"refresh": [("required", "Потрібен refresh-токен")]}
     )

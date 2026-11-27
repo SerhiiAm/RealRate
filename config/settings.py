@@ -126,7 +126,12 @@ AUTH_USER_MODEL = "users.User"
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+# Texts in code are English, Ukrainian translations are in locale/uk.
+# Always Ukrainian: no LocaleMiddleware, so the browser's Accept-Language
+# doesn't switch the language
+LANGUAGE_CODE = "uk"
+
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 TIME_ZONE = "Europe/Warsaw"
 

@@ -1,0 +1,162 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-27 20:56+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n % 1 == 0 && n % 10 == 1 && n % 100 != "
+"11 ? 0 : n % 1 == 0 && n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % "
+"100 > 14) ? 1 : n % 1 == 0 && (n % 10 ==0 || (n % 10 >=5 && n % 10 <=9) || "
+"(n % 100 >=11 && n % 100 <=14 )) ? 2: 3);\n"
+#: config/exceptions.py:18
+msgid "Invalid input"
+msgstr "Некоректні дані"
+
+#: config/exceptions.py:24
+msgid "Token is invalid or expired"
+msgstr "Токен недійсний або прострочений"
+
+#: config/exceptions.py:25
+msgid "User is inactive"
+msgstr "Акаунт деактивовано"
+
+#: config/exceptions.py:26
+msgid "User not found"
+msgstr "Користувача не знайдено"
+
+#: config/exceptions.py:28
+msgid "Authorization header must contain two space-delimited values"
+msgstr "Заголовок Authorization має містити два значення через пробіл"
+
+#: config/exceptions.py:30
+msgid "Authentication credentials were not provided"
+msgstr "Потрібно увійти в акаунт"
+
+#: config/exceptions.py:31
+msgid "Too many requests, try again later"
+msgstr "Забагато запитів, спробуйте пізніше"
+
+#: users/admin.py:18
+msgid "Personal info"
+msgstr "Особиста інформація"
+
+#: users/admin.py:19
+msgid "Permissions"
+msgstr "Права доступу"
+
+#: users/admin.py:20
+msgid "Important dates"
+msgstr "Важливі дати"
+
+#: users/models.py:12
+msgid "User"
+msgstr "Користувач"
+
+#: users/models.py:13
+msgid "Admin"
+msgstr "Адміністратор"
+
+#: users/models.py:29
+msgid "The Email field must be set"
+msgstr "Потрібно вказати email"
+
+#: users/models.py:44
+msgid "Superuser must have role=admin."
+msgstr "Суперкористувач повинен мати role=admin."
+
+#: users/models.py:57
+msgid "email address"
+msgstr "email"
+
+#: users/models.py:60
+msgid "role"
+msgstr "роль"
+
+#: users/models.py:76
+msgid "A user with this email already exists."
+msgstr "Користувач із таким email уже існує."
+
+#: users/models.py:86
+msgid "is_staff and is_superuser must match the role."
+msgstr "is_staff та is_superuser мають відповідати ролі."
+
+#: users/models.py:120
+msgid "Exchanged for a new pair"
+msgstr "Обміняно на нову пару"
+
+#: users/models.py:121
+msgid "Logged out"
+msgstr "Вихід з акаунта"
+
+#: users/models.py:122
+msgid "Revoked after reuse was detected"
+msgstr "Відкликано після виявлення повторного використання"
+
+#: users/serializers.py:16
+msgid ""
+"Name must be 2–20 characters, start with a letter and contain only letters, "
+"hyphens, or apostrophes"
+msgstr "Ім’я має містити 2–20 символів, починатися з літери й містити лише літери, дефіс або апостроф"
+
+#: users/serializers.py:20
+msgid ""
+"Last name must be 2–20 characters, start with a letter and contain only "
+"letters, hyphens, or apostrophes"
+msgstr "Прізвище має містити 2–20 символів, починатися з літери й містити лише літери, дефіс або апостроф"
+
+#: users/serializers.py:23
+msgid "This email is already registered"
+msgstr "Цей email уже зареєстровано"
+
+#: users/serializers.py:27
+msgid "Invalid email or password"
+msgstr "Неправильний email або пароль"
+
+#: users/serializers.py:66
+msgid "Refresh token is required"
+msgstr "Потрібен refresh-токен"
+
+#: users/serializers.py:73 users/serializers.py:110
+msgid "Email is required"
+msgstr "Вкажіть email"
+
+#: users/serializers.py:79 users/serializers.py:131
+msgid "Password is required"
+msgstr "Вкажіть пароль"
+
+#: users/serializers.py:116
+msgid "Name is required"
+msgstr "Вкажіть ім’я"
+
+#: users/serializers.py:137
+msgid "Please confirm your password"
+msgstr "Підтвердьте пароль"
+
+#: users/serializers.py:181
+msgid "Passwords do not match"
+msgstr "Паролі не збігаються"
+
+#: users/tokens.py:24
+msgid "Invalid or expired refresh token"
+msgstr "Refresh-токен недійсний або прострочений"
+
+#: users/validators.py:7
+msgid "Please enter a valid email address"
+msgstr "Введіть коректну адресу електронної пошти"
+
+#: users/validators.py:65
+msgid ""
+"Password must be 8–64 characters, include at least 1 uppercase letter, 1 "
+"number, 1 special character, and no spaces"
+msgstr "Пароль має містити 8–64 символи, щонайменше 1 велику літеру, 1 цифру, 1 спеціальний символ і не містити пробілів"

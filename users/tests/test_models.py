@@ -18,7 +18,7 @@ def test_create_user_lowercases_whole_email():
 
 @pytest.mark.parametrize("email", ["", None])
 def test_create_user_requires_email(email):
-    with pytest.raises(ValueError, match="The Email field must be set"):
+    with pytest.raises(ValueError, match="Потрібно вказати email"):
         User.objects.create_user(email, PASSWORD)
 
     assert not User.objects.exists()
@@ -57,7 +57,7 @@ def test_create_superuser_has_admin_role_and_flags():
 
 
 def test_create_superuser_rejects_non_admin_role():
-    with pytest.raises(ValueError, match="Superuser must have role=admin."):
+    with pytest.raises(ValueError, match="Суперкористувач повинен мати role=admin."):
         User.objects.create_superuser("admin@mail.com", PASSWORD, role=Role.USER)
 
     assert not User.objects.exists()

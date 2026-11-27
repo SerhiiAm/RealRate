@@ -8,6 +8,7 @@ always the same (the user row), they can't deadlock.
 """
 
 from django.db import transaction
+from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.token_blacklist.models import (
@@ -20,7 +21,7 @@ from .models import RefreshTokenRevocation, User
 
 Reason = RefreshTokenRevocation.Reason
 
-INVALID_REFRESH_MESSAGE = "Invalid or expired refresh token"
+INVALID_REFRESH_MESSAGE = _("Invalid or expired refresh token")
 
 
 def _invalid_refresh():
