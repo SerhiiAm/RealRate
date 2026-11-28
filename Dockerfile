@@ -20,8 +20,8 @@ RUN poetry install
 COPY . .
 
 RUN adduser --disabled-password --no-create-home appuser && \
-    mkdir -p /app/media && \
-    chown -R appuser:appuser /app/media
+    mkdir -p /app/media /app/staticfiles && \
+    chown -R appuser:appuser /app/media /app/staticfiles
 USER appuser
 
 EXPOSE 8000
